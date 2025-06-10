@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Job Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Job Tracker</h1>
+    <form id="jobForm">
+      <input type="text" id="jobName" placeholder="Job description..." required />
+      <select id="jobPriority">
+        <option value="Low">Low</option>
+        <option value="Medium" selected>Medium</option>
+        <option value="High">High</option>
+      </select>
+      <button type="submit">Add Job</button>
+    </form>
+    
+    <div>
+      <label for="sortBy">Sort by:</label>
+      <select id="sortBy">
+        <option value="priority">Priority</option>
+        <option value="time">Timestamp</option>
+      </select>
+    </div>
+    
+    <ul id="jobList"></ul>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
