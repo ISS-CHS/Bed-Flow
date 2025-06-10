@@ -3,32 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Cleaning Priorities</title>
+  <title>Job Tracker</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
     <h1>Cleaning Priorities</h1>
     <form id="jobForm">
-      <input type="text" id="jobName" placeholder="Job description..." required />
-      <select id="jobPriority">
-        <option value="Low">Low</option>
-        <option value="Medium" selected>Medium</option>
-        <option value="High">High</option>
-      </select>
+      <input type="text" id="jobName" placeholder="Enter job..." required />
       <button type="submit">Add Job</button>
     </form>
-    
-    <div>
-      <label for="sortBy">Sort by:</label>
-      <select id="sortBy">
-        <option value="priority">Priority</option>
-        <option value="time">Timestamp</option>
-      </select>
-    </div>
-    
+    <p><em>Drag jobs to reorder (top = highest priority)</em></p>
     <ul id="jobList"></ul>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
