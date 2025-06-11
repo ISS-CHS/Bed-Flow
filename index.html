@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Job Tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header>
@@ -14,51 +14,37 @@
   </header>
 
   <div class="container">
-  <h2>Create new job:</h2>
+    <h2>Create new job:</h2>
     <form id="jobForm" autocomplete="off">
-
       <div class="input-group">
         <span class="input-icon" aria-hidden="true">🛏️</span>
-        <input
-          type="text"
-          id="bedNumber"
-          placeholder="Bed number"
-          required
-          autocomplete="off"
-        />
+        <input type="text" id="bedNumber" placeholder="Bed number" required autocomplete="off" />
       </div>
-
       <div class="input-group">
         <span class="input-icon" aria-hidden="true">🏥</span>
         <input type="text" id="ward" placeholder="Ward" required autocomplete="off" />
       </div>
-
       <div class="input-group">
         <span class="input-icon" aria-hidden="true">📍</span>
-        <input
-          type="text"
-          id="location"
-          placeholder="Building / Location"
-          required
-          autocomplete="off"
-        />
+        <input type="text" id="location" placeholder="Building / Location" required autocomplete="off" />
       </div>
-	
-	<div class="input-group">
-        <input
-          type="text"
-          id="jobName"
-          placeholder="📝 Enter job description..."
-          required
-          autocomplete="off"
-        />
+      <div class="input-group" style="flex: 1 1 100%;">
+        <input type="text" id="jobName" placeholder="📝 Enter job description..." required autocomplete="off" />
       </div>
       <button type="submit">Add Job</button>
     </form>
 
-    <ul id="jobList"></ul>
-    <p id="lastUpdated" class="last-updated">Last updated: never</p>
+    <section class="job-section">
+      <h2>Pending Jobs</h2>
+      <ul id="pendingJobList"></ul>
+    </section>
 
+    <section class="job-section">
+      <h2>Completed Jobs</h2>
+      <ul id="completedJobList"></ul>
+    </section>
+
+    <p id="lastUpdated" class="last-updated">Last updated: never</p>
   </div>
 
   <script src="script.js"></script>
