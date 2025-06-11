@@ -1,3 +1,20 @@
+// --- Login logic ---
+const loginScreen = document.getElementById("loginScreen");
+const loginForm = document.getElementById("loginForm");
+const loginUsername = document.getElementById("loginUsername");
+const loginPassword = document.getElementById("loginPassword");
+const loginError = document.getElementById("loginError");
+
+const mainApp = document.getElementById("mainApp");
+const logoutButton = document.getElementById("logoutButton");
+
+// Demo users
+const USERS = [
+  { username: "BedFlow", password: "BedFlow", role: "admin" },
+  { username: "HelpDesk", password: "HelpDesk", role: "user" }
+];
+
+// --- App logic ---
 const form = document.getElementById("jobForm");
 const jobInput = document.getElementById("jobName");
 const bedInput = document.getElementById("bedNumber");
@@ -7,9 +24,11 @@ const pendingJobList = document.getElementById("pendingJobList");
 const completedJobList = document.getElementById("completedJobList");
 const refreshButton = document.getElementById("refreshButton");
 const lastUpdated = document.getElementById("lastUpdated");
+const createJobHeader = document.getElementById("createJobHeader");
 
 let jobs = JSON.parse(localStorage.getItem("jobs")) || [];
-let isAdmin = false; // Set to true to enable admin features
+let currentUser = null;
+let isAdmin = false;
 
 function saveJobs() {
   localStorage.setItem("jobs", JSON.stringify(jobs));
@@ -22,9 +41,10 @@ function formatDate(dateStr) {
   const yyyy = d.getFullYear();
   let hh = d.getHours();
   const min = String(d.getMinutes()).padStart(2, "0");
+  const sec = String(d.getSeconds()).padStart(2, "0");
   const ampm = hh >= 12 ? "PM" : "AM";
   hh = hh % 12 || 12;
-  return `${dd}/${mm}/${yyyy} ${hh}:${min} ${ampm}`;
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}:${sec} ${ampm}`;
 }
 
 function getDuration(start, end) {
@@ -45,13 +65,24 @@ function updateLastUpdatedTime() {
   lastUpdated.textContent = "Last updated: " + formatDate(new Date());
 }
 
+function moveJob(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= jobs.length) return;
+  const tmp = jobs[index];
+  jobs[index] = jobs[newIndex];
+  jobs[newIndex] = tmp;
+  saveJobs();
+  renderJobs();
+  updateLastUpdatedTime();
+}
+
 function createJobElement(job, index) {
   const li = document.createElement("li");
   li.setAttribute("data-id", index);
   li.className = job.completed ? "completed" : "";
   li.draggable = isAdmin;
 
-  // Checkbox to mark completed
+  // Checkbox to mark completed/uncompleted (both roles)
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.checked = job.completed;
@@ -89,6 +120,23 @@ function createJobElement(job, index) {
   actions.className = "job-actions";
 
   if (isAdmin) {
+    // Move up/down
+    const upBtn = document.createElement("button");
+    upBtn.textContent = "↑";
+    upBtn.title = "Move up";
+    upBtn.disabled = index === 0;
+    upBtn.addEventListener("click", () => moveJob(index, -1));
+
+    const downBtn = document.createElement("button");
+    downBtn.textContent = "↓";
+    downBtn.title = "Move down";
+    downBtn.disabled = index === jobs.length - 1;
+    downBtn.addEventListener("click", () => moveJob(index, 1));
+
+    actions.appendChild(upBtn);
+    actions.appendChild(downBtn);
+
+    // Edit
     const editBtn = document.createElement("button");
     editBtn.textContent = "Edit";
     editBtn.addEventListener("click", () => {
@@ -106,6 +154,7 @@ function createJobElement(job, index) {
       updateLastUpdatedTime();
     });
 
+    // Delete
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "Delete";
     deleteBtn.addEventListener("click", () => {
@@ -177,8 +226,51 @@ function renderJobs() {
   });
 }
 
+// --- Login event ---
+loginForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const username = loginUsername.value.trim();
+  const password = loginPassword.value;
+
+  const user = USERS.find(
+    u => u.username === username && u.password === password
+  );
+
+  if (!user) {
+    loginError.textContent = "Invalid username or password.";
+    return;
+  }
+
+  currentUser = user;
+  isAdmin = user.role === "admin";
+
+  // Hide login, show app
+  loginScreen.style.display = "none";
+  mainApp.style.display = "";
+
+  // Show/hide admin controls
+  form.style.display = isAdmin ? "" : "none";
+  createJobHeader.style.display = isAdmin ? "" : "none";
+
+  renderJobs();
+  updateLastUpdatedTime();
+});
+
+// --- Logout event ---
+logoutButton.addEventListener("click", () => {
+  currentUser = null;
+  isAdmin = false;
+  mainApp.style.display = "none";
+  loginScreen.style.display = "";
+  loginForm.reset();
+  loginError.textContent = "";
+});
+
+// --- Job add event (admin only) ---
 form.addEventListener("submit", (e) => {
   e.preventDefault();
+  if (!isAdmin) return; // Prevent normal users from submitting
+
   const jobName = jobInput.value.trim();
   const bedNumber = bedInput.value.trim();
   const ward = wardInput.value.trim();
@@ -202,18 +294,22 @@ form.addEventListener("submit", (e) => {
   updateLastUpdatedTime();
 });
 
+// --- Refresh ---
 refreshButton.addEventListener("click", () => {
   jobs = JSON.parse(localStorage.getItem("jobs")) || [];
   renderJobs();
   updateLastUpdatedTime();
 });
 
+// --- Sync every minute ---
 setInterval(() => {
-  jobs = JSON.parse(localStorage.getItem("jobs")) || [];
-  renderJobs();
-  updateLastUpdatedTime();
+  if (mainApp.style.display !== "none") {
+    jobs = JSON.parse(localStorage.getItem("jobs")) || [];
+    renderJobs();
+    updateLastUpdatedTime();
+  }
 }, 60000);
 
-// Initial render
-renderJobs();
-updateLastUpdatedTime();
+// --- Initial state ---
+mainApp.style.display = "none";
+loginScreen.style.display = "";
