@@ -8,43 +8,64 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>Cleaning Priority List</h1>
-    <button id="refreshButton" title="Refresh jobs list"> Refresh ⟳</button>
-  </header>
-
-  <div class="container">
-    <h2>Create new job:</h2>
-    <form id="jobForm" autocomplete="off">
-      <div class="input-group">
-        <span class="input-icon" aria-hidden="true">🛏️</span>
-        <input type="text" id="bedNumber" placeholder="Bed number" required autocomplete="off" />
-      </div>
-      <div class="input-group">
-        <span class="input-icon" aria-hidden="true">🏥</span>
-        <input type="text" id="ward" placeholder="Ward" required autocomplete="off" />
-      </div>
-      <div class="input-group">
-        <span class="input-icon" aria-hidden="true">📍</span>
-        <input type="text" id="location" placeholder="Building / Location" required autocomplete="off" />
-      </div>
-      <div class="input-group" style="flex: 1 1 100%;">
-        <input type="text" id="jobName" placeholder="📝 Enter job description..." required autocomplete="off" />
-      </div>
-      <button type="submit">Add Job</button>
+  <!-- Login screen -->
+  <div id="loginScreen" class="login-screen">
+    <form id="loginForm" autocomplete="off">
+      <h2>Login</h2>
+      <label>
+        Username:
+        <input type="text" id="loginUsername" required autocomplete="off" />
+      </label>
+      <label>
+        Password:
+        <input type="password" id="loginPassword" required autocomplete="off" />
+      </label>
+      <button type="submit">Login</button>
+      <div id="loginError" class="login-error"></div>
     </form>
+  </div>
 
-    <section class="job-section">
-      <h2>Pending Jobs</h2>
-      <ul id="pendingJobList"></ul>
-    </section>
+  <!-- Main app -->
+  <div id="mainApp" style="display:none;">
+    <header>
+      <h1>Cleaning Priority List</h1>
+      <button id="refreshButton" title="Refresh jobs list">Refresh ⟳</button>
+      <button id="logoutButton" style="margin-left:auto;">Logout</button>
+    </header>
 
-    <section class="job-section">
-      <h2>Completed Jobs</h2>
-      <ul id="completedJobList"></ul>
-    </section>
+    <div class="container">
+      <h2 id="createJobHeader" style="display:none;">Create new job:</h2>
+      <form id="jobForm" autocomplete="off" style="display:none;">
+        <div class="input-group">
+          <span class="input-icon" aria-hidden="true">🛏️</span>
+          <input type="text" id="bedNumber" placeholder="Bed number" required autocomplete="off" />
+        </div>
+        <div class="input-group">
+          <span class="input-icon" aria-hidden="true">🏥</span>
+          <input type="text" id="ward" placeholder="Ward" required autocomplete="off" />
+        </div>
+        <div class="input-group">
+          <span class="input-icon" aria-hidden="true">📍</span>
+          <input type="text" id="location" placeholder="Building / Location" required autocomplete="off" />
+        </div>
+        <div class="input-group" style="flex: 1 1 100%;">
+          <input type="text" id="jobName" placeholder="📝 Enter job description..." required autocomplete="off" />
+        </div>
+        <button type="submit">Add Job</button>
+      </form>
 
-    <p id="lastUpdated" class="last-updated">Last updated: never</p>
+      <section class="job-section">
+        <h2>Pending Jobs</h2>
+        <ul id="pendingJobList"></ul>
+      </section>
+
+      <section class="job-section">
+        <h2>Completed Jobs</h2>
+        <ul id="completedJobList"></ul>
+      </section>
+
+      <p id="lastUpdated" class="last-updated">Last updated: never</p>
+    </div>
   </div>
 
   <script src="script.js"></script>
