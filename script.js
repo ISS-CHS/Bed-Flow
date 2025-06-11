@@ -6,131 +6,115 @@ const locationInput = document.getElementById("location");
 const jobList = document.getElementById("jobList");
 const refreshButton = document.getElementById("refreshButton");
 const lastUpdated = document.getElementById("lastUpdated");
+const passwordInput = document.getElementById("passwordInput");
+const loginButton = document.getElementById("loginButton");
+const authSection = document.getElementById("authSection");
+const appSection = document.getElementById("appSection");
 
 let jobs = JSON.parse(localStorage.getItem("jobs")) || [];
+let isAdmin = false;
 
-let role = null; // "admin" or "user"
-
-// Prompt for password at page load
-function askPassword() {
-  const pwd = prompt("Enter password:");
-
-  if (pwd === "BedFlow") {
-    role = "admin";
-  } else if (pwd === "HelpDesk") {
-    role = "user";
-  } else {
-    alert("Incorrect password. Reload the page to try again.");
-    role = null;
-  }
-}
-
-askPassword();
-
-if (!role) {
-  document.body.innerHTML = "<h2>Access Denied</h2>";
-  throw new Error("Access denied — no valid password.");
-}
-
-// Disable form inputs & submit button for user role only
-if (role === "user") {
-  jobInput.disabled = true;
-  bedInput.disabled = true;
-  wardInput.disabled = true;
-  locationInput.disabled = true;
-  form.querySelector("button[type='submit']").disabled = true;
-}
-
-// Save jobs to localStorage
 function saveJobs() {
   localStorage.setItem("jobs", JSON.stringify(jobs));
 }
 
-// Escape HTML to prevent injection
+function formatDate(dateStr) {
+  const d = new Date(dateStr);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  let hh = d.getHours();
+  const min = String(d.getMinutes()).padStart(2, "0");
+  const ampm = hh >= 12 ? "PM" : "AM";
+  hh = hh % 12 || 12;
+  return `${dd}/${mm}/${yyyy} ${hh}:${min} ${ampm}`;
+}
+
+function getDuration(start, end) {
+  const ms = new Date(end) - new Date(start);
+  const mins = Math.floor(ms / 60000);
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return hrs > 0 ? `${hrs}h ${remMins}m` : `${remMins}m`;
+}
+
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
 }
 
-// Update last updated timestamp
 function updateLastUpdatedTime() {
-  const now = new Date();
-  lastUpdated.textContent = "Last updated: " + now.toLocaleTimeString();
+  lastUpdated.textContent = "Last updated: " + formatDate(new Date());
 }
 
-// Render job list
 function renderJobs() {
   jobList.innerHTML = "";
   jobs.forEach((job, index) => {
     const li = document.createElement("li");
     li.setAttribute("data-id", index);
     li.className = job.completed ? "completed" : "";
-    li.draggable = (role === "admin"); // Only admin can drag
+    li.draggable = isAdmin;
 
-    // Completion checkbox (enabled for all)
+    // Checkbox to mark completed
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = job.completed;
     checkbox.title = "Mark as completed";
     checkbox.addEventListener("change", () => {
       jobs[index].completed = checkbox.checked;
+      jobs[index].completedAt = checkbox.checked ? new Date().toISOString() : null;
       saveJobs();
       renderJobs();
       updateLastUpdatedTime();
     });
 
-    // Job details
+    // Rank number outside the job container
+    const rank = document.createElement("span");
+    rank.className = "rank";
+    rank.textContent = (index + 1) + ".";
+
+    // Job details container
     const jobText = document.createElement("div");
     jobText.className = "job-text";
     jobText.innerHTML = `
-      <strong>${escapeHtml(job.name)}</strong>
-      <br/>
-      🛏️ Bed: ${escapeHtml(job.bedNumber)} | 🏥 Ward: ${escapeHtml(job.ward)} | 📍 Location: ${escapeHtml(job.location)}
-      <br/>
-      <small>Logged: ${new Date(job.timestamp).toLocaleString()}</small>
+      <strong>${escapeHtml(job.name)}</strong><br/>
+      🛏️ Bed: ${escapeHtml(job.bedNumber)} | 🏥 Ward: ${escapeHtml(job.ward)} | 📍 Location: ${escapeHtml(job.location)}<br/>
+      <small>Logged: ${formatDate(job.timestamp)}</small><br/>
+      ${job.completedAt ? `
+        <small>✅ Completed: ${formatDate(job.completedAt)}</small><br/>
+        <small>⏱️ Time to complete: ${getDuration(job.timestamp, job.completedAt)}</small>
+      ` : `
+        <small>⌛ Pending: ${getDuration(job.timestamp, new Date())}</small>
+      `}
     `;
 
-    // Actions container
+    // Actions (edit/delete) only for admin
     const actions = document.createElement("div");
     actions.className = "job-actions";
 
-    if (role === "admin") {
-      // Edit button
+    if (isAdmin) {
       const editBtn = document.createElement("button");
       editBtn.textContent = "Edit";
-      editBtn.title = "Edit job";
       editBtn.addEventListener("click", () => {
         const newName = prompt("Edit job description:", job.name);
-        if (newName === null) return;
-
+        if (!newName) return;
         const newBed = prompt("Edit bed number:", job.bedNumber);
-        if (newBed === null) return;
-
+        if (!newBed) return;
         const newWard = prompt("Edit ward:", job.ward);
-        if (newWard === null) return;
-
-        const newLocation = prompt("Edit building/location:", job.location);
-        if (newLocation === null) return;
-
-        jobs[index] = {
-          ...jobs[index],
-          name: newName.trim(),
-          bedNumber: newBed.trim(),
-          ward: newWard.trim(),
-          location: newLocation.trim(),
-        };
+        if (!newWard) return;
+        const newLocation = prompt("Edit location:", job.location);
+        if (!newLocation) return;
+        jobs[index] = { ...job, name: newName, bedNumber: newBed, ward: newWard, location: newLocation };
         saveJobs();
         renderJobs();
         updateLastUpdatedTime();
       });
 
-      // Delete button
       const deleteBtn = document.createElement("button");
       deleteBtn.textContent = "Delete";
-      deleteBtn.title = "Delete job";
       deleteBtn.addEventListener("click", () => {
-        if (confirm("Are you sure you want to delete this job?")) {
+        if (confirm("Delete this job?")) {
           jobs.splice(index, 1);
           saveJobs();
           renderJobs();
@@ -143,11 +127,12 @@ function renderJobs() {
     }
 
     li.appendChild(checkbox);
+    li.appendChild(rank);
     li.appendChild(jobText);
-    li.appendChild(actions);
+    if (isAdmin) li.appendChild(actions);
 
-    // Drag and drop for admin only
-    if (role === "admin") {
+    // Drag & drop for admin only
+    if (isAdmin) {
       li.addEventListener("dragstart", (e) => {
         e.dataTransfer.setData("text/plain", index.toString());
         li.style.opacity = "0.5";
@@ -170,14 +155,10 @@ function renderJobs() {
         e.preventDefault();
         li.style.borderTop = "";
         const draggedIndex = parseInt(e.dataTransfer.getData("text/plain"));
-        const targetIndex = index;
-
-        if (draggedIndex === targetIndex) return;
-
+        if (draggedIndex === index) return;
         const draggedJob = jobs[draggedIndex];
         jobs.splice(draggedIndex, 1);
-        jobs.splice(targetIndex, 0, draggedJob);
-
+        jobs.splice(index, 0, draggedJob);
         saveJobs();
         renderJobs();
         updateLastUpdatedTime();
@@ -188,29 +169,24 @@ function renderJobs() {
   });
 }
 
-// Form submission
 form.addEventListener("submit", (e) => {
   e.preventDefault();
-
-  if (role !== "admin") return; // Only admin can add jobs
-
   const jobName = jobInput.value.trim();
   const bedNumber = bedInput.value.trim();
   const ward = wardInput.value.trim();
   const location = locationInput.value.trim();
-
   if (!jobName || !bedNumber || !ward || !location) return;
 
-  const newJob = {
+  jobs.push({
     name: jobName,
     bedNumber,
     ward,
     location,
     timestamp: new Date().toISOString(),
     completed: false,
-  };
+    completedAt: null
+  });
 
-  jobs.push(newJob);
   saveJobs();
   form.reset();
   jobInput.focus();
@@ -218,20 +194,26 @@ form.addEventListener("submit", (e) => {
   updateLastUpdatedTime();
 });
 
-// Refresh button for both roles
 refreshButton.addEventListener("click", () => {
   jobs = JSON.parse(localStorage.getItem("jobs")) || [];
   renderJobs();
   updateLastUpdatedTime();
 });
 
-// Auto-refresh every 60 seconds for both roles
 setInterval(() => {
   jobs = JSON.parse(localStorage.getItem("jobs")) || [];
   renderJobs();
   updateLastUpdatedTime();
 }, 60000);
 
-// Initial render
-renderJobs();
-updateLastUpdatedTime();
+loginButton.addEventListener("click", () => {
+  const password = passwordInput.value.trim();
+  isAdmin = password === "BedFlow";
+
+  authSection.style.display = "none";
+  appSection.style.display = "block";
+
+  document.getElementById("jobForm").style.display = isAdmin ? "flex" : "none";
+  renderJobs();
+  updateLastUpdatedTime();
+});
