@@ -1,8 +1,11 @@
 // --- Firebase Firestore Integration for Shared Jobs List ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
+  getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -13,24 +16,28 @@ const firebaseConfig = {
   messagingSenderId: "610045219151",
   appId: "1:610045219151:web:6161ad0a01ec7cf3d7753a"
 };
+
 // Initialize Firebase and Firestore
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth();
 const jobsCol = collection(db, "jobs");
 
 // --- App Variables ---
 const loginScreen = document.getElementById("loginScreen");
 const loginForm = document.getElementById("loginForm");
+const loginEmail = document.getElementById("loginEmail");
 const loginPassword = document.getElementById("loginPassword");
 const loginError = document.getElementById("loginError");
 
+const signupScreen = document.getElementById("signupScreen");
+const signupForm = document.getElementById("signupForm");
+const signupEmail = document.getElementById("signupEmail");
+const signupPassword = document.getElementById("signupPassword");
+const signupError = document.getElementById("signupError");
+
 const mainApp = document.getElementById("mainApp");
 const logoutButton = document.getElementById("logoutButton");
-
-const USERS = [
-  { password: "BedFlow", role: "admin" },
-  { password: "HelpDesk", role: "user" }
-];
 
 const form = document.getElementById("jobForm");
 const jobInput = document.getElementById("jobName");
@@ -182,7 +189,6 @@ function createJobElement(job, rankNumber) {
     const downBtn = document.createElement("button");
     downBtn.textContent = "↓";
     downBtn.title = "Move down";
-    // Only enable if not last in the visible list
     downBtn.disabled =
       rankNumber === jobs.filter(j => !j.archived && !j.completed).length - 1;
     downBtn.addEventListener("click", () => moveJob(job.id, 1));
@@ -228,9 +234,6 @@ function createJobElement(job, rankNumber) {
   li.appendChild(jobText);
   if (isAdmin) li.appendChild(actions);
 
-  // Drag & drop: (optional; needs more logic for cross-client sync)
-  // You can implement Firestore-based ordering if you want.
-
   return li;
 }
 
@@ -263,39 +266,83 @@ function renderArchivedJobs() {
 
 // --- Move Job (admin only, basic order update) ---
 async function moveJob(jobId, direction) {
-  // Simple implementation: reorders jobs by changing a "sortOrder" field in Firestore.
-  // For brevity, not fully implemented here.
   alert("To enable drag-and-drop/move order across all clients, implement a 'sortOrder' field in jobs and update all jobs' sortOrder in Firestore.");
 }
+
+// --- Auth state listener ---
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUser = user;
+    // For demo: admins = email ends with "@admin.com"
+    isAdmin = user.email && user.email.endsWith("@admin.com");
+    loginScreen.style.display = "none";
+    signupScreen.style.display = "none";
+    mainApp.style.display = "";
+    form.style.display = isAdmin ? "" : "none";
+    createJobHeader.style.display = isAdmin ? "" : "none";
+    archiveOldCompletedJobs();
+    renderJobs();
+    updateLastUpdatedTime();
+  } else {
+    currentUser = null;
+    isAdmin = false;
+    mainApp.style.display = "none";
+    loginScreen.style.display = "";
+    signupScreen.style.display = "none";
+    loginForm.reset();
+    loginError.textContent = "";
+  }
+});
 
 // --- Login event ---
 loginForm.addEventListener("submit", (e) => {
   e.preventDefault();
+  const email = loginEmail.value.trim();
   const password = loginPassword.value;
-  const user = USERS.find(u => u.password === password);
-  if (!user) {
-    loginError.textContent = "Invalid username or password.";
-    return;
-  }
-  currentUser = user;
-  isAdmin = user.role === "admin";
+  signInWithEmailAndPassword(auth, email, password)
+    .catch((error) => {
+      loginError.textContent = "Login failed: " + error.message;
+    });
+});
+
+// --- Signup event ---
+if (signupForm) {
+  signupForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = signupEmail.value.trim();
+    const password = signupPassword.value;
+    createUserWithEmailAndPassword(auth, email, password)
+      .then(() => {
+        signupScreen.style.display = "none";
+        loginScreen.style.display = "";
+      })
+      .catch((error) => {
+        signupError.textContent = "Signup failed: " + error.message;
+      });
+  });
+}
+
+// --- Show signup screen ---
+document.getElementById("showSignup")?.addEventListener("click", (e) => {
+  e.preventDefault();
   loginScreen.style.display = "none";
-  mainApp.style.display = "";
-  form.style.display = isAdmin ? "" : "none";
-  createJobHeader.style.display = isAdmin ? "" : "none";
-  archiveOldCompletedJobs();
-  renderJobs();
-  updateLastUpdatedTime();
+  signupScreen.style.display = "";
+  signupForm.reset();
+  signupError.textContent = "";
+});
+
+// --- Show login screen from signup ---
+document.getElementById("showLogin")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  signupScreen.style.display = "none";
+  loginScreen.style.display = "";
+  loginForm.reset();
+  loginError.textContent = "";
 });
 
 // --- Logout event ---
 logoutButton.addEventListener("click", () => {
-  currentUser = null;
-  isAdmin = false;
-  mainApp.style.display = "none";
-  loginScreen.style.display = "";
-  loginForm.reset();
-  loginError.textContent = "";
+  signOut(auth);
 });
 
 // --- Job add event (admin only) ---
@@ -324,7 +371,6 @@ form.addEventListener("submit", async (e) => {
 
 // --- Refresh ---
 refreshButton.addEventListener("click", () => {
-  // Firestore is always live; just re-render.
   renderJobs();
   updateLastUpdatedTime();
 });
@@ -335,8 +381,6 @@ onSnapshot(jobsCol, async (snapshot) => {
   snapshot.forEach((doc) => {
     jobs.push({ id: doc.id, ...doc.data() });
   });
-
-  // Sort jobs by timestamp (oldest first), add sortOrder if you want custom order.
   jobs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   await archiveOldCompletedJobs();
   renderJobs();
@@ -346,5 +390,4 @@ onSnapshot(jobsCol, async (snapshot) => {
 // --- Initial state ---
 mainApp.style.display = "none";
 loginScreen.style.display = "";
-
-// --- Archive on first load (handled by onSnapshot) ---
+if (signupScreen) signupScreen.style.display = "none";
