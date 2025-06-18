@@ -312,10 +312,7 @@ if (signupForm) {
     const email = signupEmail.value.trim();
     const password = signupPassword.value;
     createUserWithEmailAndPassword(auth, email, password)
-      .then(() => {
-        signupScreen.style.display = "none";
-        loginScreen.style.display = "";
-      })
+      // No UI switch here! Let onAuthStateChanged handle app display.
       .catch((error) => {
         signupError.textContent = "Signup failed: " + error.message;
       });
