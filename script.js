@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAD3LKX5Xsqpx88TSIoJUIOOXQ7VTTZbmU",
   authDomain: "cleaning-priority.firebaseapp.com",
   projectId: "cleaning-priority",
-  storageBucket: "cleaning-priority.firebasestorage.app",
+  storageBucket: "cleaning-priority.appspot.com",
   messagingSenderId: "610045219151",
   appId: "1:610045219151:web:6161ad0a01ec7cf3d7753a"
 };
