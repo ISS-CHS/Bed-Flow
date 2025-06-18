@@ -12,14 +12,16 @@
   <div id="loginScreen" class="login-screen">
     <form id="loginForm" autocomplete="off">
       <h2>Login</h2>
-      <label>
-        Email:
-        <input type="email" id="loginEmail" required autocomplete="off" />
-      </label>
-      <label>
-        Password:
-        <input type="password" id="loginPassword" required autocomplete="off" />
-      </label>
+      <div class="input-row">
+        <label>
+          Email:
+          <input type="email" id="loginEmail" required autocomplete="off" />
+        </label>
+        <label>
+          Password:
+          <input type="password" id="loginPassword" required autocomplete="off" />
+        </label>
+      </div>
       <button type="submit">Login</button>
       <p>
         Don't have an account?
@@ -33,14 +35,16 @@
   <div id="signupScreen" class="login-screen" style="display:none;">
     <form id="signupForm" autocomplete="off">
       <h2>Sign Up</h2>
-      <label>
-        Email:
-        <input type="email" id="signupEmail" required autocomplete="off" />
-      </label>
-      <label>
-        Password:
-        <input type="password" id="signupPassword" required autocomplete="off" minlength="6" />
-      </label>
+      <div class="input-row">
+        <label>
+          Email:
+          <input type="email" id="signupEmail" required autocomplete="off" />
+        </label>
+        <label>
+          Password:
+          <input type="password" id="signupPassword" required autocomplete="off" minlength="6" />
+        </label>
+      </div>
       <button type="submit">Sign Up</button>
       <p>
         Already have an account?
