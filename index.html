@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Job Tracker</title>
+  <title>Bed Cleaning Priority List</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -12,10 +12,6 @@
   <div id="loginScreen" class="login-screen">
     <form id="loginForm" autocomplete="off">
       <h2>Login</h2>
-      <label>
-        Username:
-        <input type="text" id="loginUsername" required autocomplete="off" />
-      </label>
       <label>
         Password:
         <input type="password" id="loginPassword" required autocomplete="off" />
@@ -29,30 +25,32 @@
   <div id="mainApp" style="display:none;">
     <header>
       <h1>Cleaning Priority List</h1>
-      <button id="refreshButton" title="Refresh jobs list">Refresh ⟳</button>
-      <button id="logoutButton" style="margin-left:auto;">Logout</button>
+      <div class="header-actions">
+        <button id="refreshButton" title="Refresh jobs list">Refresh Page ⟳</button>
+        <button id="logoutButton" style="margin-left:auto;">Logout</button>
+      </div>
     </header>
 
     <div class="container">
       <h2 id="createJobHeader" style="display:none;">Create new job:</h2>
-      <form id="jobForm" autocomplete="off" style="display:none;">
-        <div class="input-group">
-          <span class="input-icon" aria-hidden="true">🛏️</span>
-          <input type="text" id="bedNumber" placeholder="Bed number" required autocomplete="off" />
-        </div>
-        <div class="input-group">
-          <span class="input-icon" aria-hidden="true">🏥</span>
-          <input type="text" id="ward" placeholder="Ward" required autocomplete="off" />
-        </div>
-        <div class="input-group">
-          <span class="input-icon" aria-hidden="true">📍</span>
-          <input type="text" id="location" placeholder="Building / Location" required autocomplete="off" />
-        </div>
-        <div class="input-group" style="flex: 1 1 100%;">
-          <input type="text" id="jobName" placeholder="📝 Enter job description..." required autocomplete="off" />
-        </div>
-        <button type="submit">Add Job</button>
-      </form>
+<form id="jobForm" autocomplete="off" style="display:none;">
+  <div class="input-group">
+    <span class="input-icon" aria-hidden="true">📍</span>
+    <input type="text" id="location" placeholder="Building / Location..." required autocomplete="off" />
+  </div>
+  <div class="input-group">
+    <span class="input-icon" aria-hidden="true">🏥</span>
+    <input type="text" id="ward" placeholder="Ward..." required autocomplete="off" />
+  </div>
+  <div class="input-group">
+    <span class="input-icon" aria-hidden="true">🛏️</span>
+    <input type="text" id="bedNumber" placeholder="Bed number..." required autocomplete="off" />
+  </div>
+  <div class="input-group desc-group">
+    <input type="text" id="jobName" placeholder="📝 Job description..." autocomplete="off" />
+  </div>
+  <button type="submit" class="add-job-btn">Add Job</button>
+</form>
 
       <section class="job-section">
         <h2>Pending Jobs</h2>
@@ -62,6 +60,11 @@
       <section class="job-section">
         <h2>Completed Jobs</h2>
         <ul id="completedJobList"></ul>
+      </section>
+
+      <section class="job-section">
+        <h2>Archived Jobs</h2>
+        <ul id="archivedJobList"></ul>
       </section>
 
       <p id="lastUpdated" class="last-updated">Last updated: never</p>
