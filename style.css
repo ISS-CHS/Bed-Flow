@@ -53,6 +53,25 @@ form#jobForm {
   transition: box-shadow 0.2s;
 }
 
+/* Make email box look like password box in forms (login, signup) */
+#loginForm input[type="email"],
+#signupForm input[type="email"] {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 17px;
+  border: none;
+  background: #e3eaff;
+  outline: none;
+  color: #002147;
+  border-radius: 5px;
+  transition: box-shadow 0.16s;
+  margin-bottom: 0;
+}
+#loginForm input[type="email"]:focus,
+#signupForm input[type="email"]:focus {
+  box-shadow: 0 0 0 2px #002d54;
+}
+
 .job-desc-group {
   flex: 2 1 100% !important;
   display: flex !important;
@@ -384,4 +403,3 @@ li.archived {
     height: 42px;
   }
 }
-
