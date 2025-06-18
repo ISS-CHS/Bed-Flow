@@ -1,7 +1,6 @@
 // --- Login logic ---
 const loginScreen = document.getElementById("loginScreen");
 const loginForm = document.getElementById("loginForm");
-const loginUsername = document.getElementById("loginUsername");
 const loginPassword = document.getElementById("loginPassword");
 const loginError = document.getElementById("loginError");
 
@@ -10,8 +9,8 @@ const logoutButton = document.getElementById("logoutButton");
 
 // Demo users
 const USERS = [
-  { username: "BedFlow", password: "BedFlow", role: "admin" },
-  { username: "HelpDesk", password: "HelpDesk", role: "user" }
+  { password: "BedFlow", role: "admin" },
+  { password: "HelpDesk", role: "user" }
 ];
 
 // --- App logic ---
@@ -22,6 +21,7 @@ const wardInput = document.getElementById("ward");
 const locationInput = document.getElementById("location");
 const pendingJobList = document.getElementById("pendingJobList");
 const completedJobList = document.getElementById("completedJobList");
+const archivedJobList = document.getElementById("archivedJobList");
 const refreshButton = document.getElementById("refreshButton");
 const lastUpdated = document.getElementById("lastUpdated");
 const createJobHeader = document.getElementById("createJobHeader");
@@ -57,7 +57,7 @@ function getDuration(start, end) {
 
 function escapeHtml(text) {
   const div = document.createElement("div");
-  div.textContent = text;
+  div.textContent = text || '';
   return div.innerHTML;
 }
 
@@ -76,9 +76,40 @@ function moveJob(index, direction) {
   updateLastUpdatedTime();
 }
 
-function createJobElement(job, index) {
+// Archive jobs completed for more than 24 hours
+function archiveOldCompletedJobs() {
+  const now = new Date();
+  const twentyFourHours = 24 * 60 * 60 * 1000;
+  let changed = false;
+
+  jobs.forEach(job => {
+    if (typeof job.archived === "undefined") job.archived = false;
+  });
+
+  jobs.forEach((job) => {
+    if (
+      job.completed &&
+      job.completedAt &&
+      !job.archived &&
+      (now - new Date(job.completedAt)) > twentyFourHours
+    ) {
+      job.archived = true;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    saveJobs();
+    renderJobs();
+    renderArchivedJobs();
+  }
+}
+
+// ... (all your other code remains the same above)
+
+function createJobElement(job, globalIndex, rankNumber) {
   const li = document.createElement("li");
-  li.setAttribute("data-id", index);
+  li.setAttribute("data-id", globalIndex);
   li.className = job.completed ? "completed" : "";
   li.draggable = isAdmin;
 
@@ -88,24 +119,49 @@ function createJobElement(job, index) {
   checkbox.checked = job.completed;
   checkbox.title = "Mark as completed";
   checkbox.addEventListener("change", () => {
-    jobs[index].completed = checkbox.checked;
-    jobs[index].completedAt = checkbox.checked ? new Date().toISOString() : null;
-    saveJobs();
-    renderJobs();
-    updateLastUpdatedTime();
+    if (checkbox.checked) {
+      jobs[globalIndex].completed = true;
+      jobs[globalIndex].completedAt = new Date().toISOString();
+      saveJobs();
+      renderJobs();
+      updateLastUpdatedTime();
+    } else {
+      // Confirm before marking as uncomplete
+      const confirmUncomplete = confirm("Are you sure you want to mark this job as uncomplete?");
+      if (confirmUncomplete) {
+        jobs[globalIndex].completed = false;
+        jobs[globalIndex].completedAt = null;
+        saveJobs();
+        renderJobs();
+        updateLastUpdatedTime();
+      } else {
+        // Revert checkbox back to checked
+        checkbox.checked = true;
+      }
+    }
   });
 
-  // Rank number
+  // Rank number (use passed-in rankNumber)
   const rank = document.createElement("span");
   rank.className = "rank";
-  rank.textContent = (index + 1) + ".";
+  rank.textContent = (rankNumber + 1) + ".";
 
-  // Job details
+  // Job header: Bed, Ward, Location (each on separate line, bold)
+  const jobHeader = document.createElement("div");
+  jobHeader.className = "job-header";
+  jobHeader.innerHTML = `
+    <strong>
+      🛏️ Bed: ${escapeHtml(job.bedNumber)}<br>
+      🏥 Ward: ${escapeHtml(job.ward)}<br>
+      📍 Location: ${escapeHtml(job.location)}
+    </strong>
+  `;
+
+  // Job details: Description (optional), time info (below header)
   const jobText = document.createElement("div");
   jobText.className = "job-text";
   jobText.innerHTML = `
-    <strong>${escapeHtml(job.name)}</strong><br/>
-    🛏️ Bed: ${escapeHtml(job.bedNumber)} | 🏥 Ward: ${escapeHtml(job.ward)} | 📍 Location: ${escapeHtml(job.location)}<br/>
+    ${job.name ? `<div><em>${escapeHtml(job.name)}</em></div>` : ""}
     <small>Logged: ${formatDate(job.timestamp)}</small><br/>
     ${job.completedAt ? `
       <small>✅ Completed: ${formatDate(job.completedAt)}</small><br/>
@@ -124,14 +180,14 @@ function createJobElement(job, index) {
     const upBtn = document.createElement("button");
     upBtn.textContent = "↑";
     upBtn.title = "Move up";
-    upBtn.disabled = index === 0;
-    upBtn.addEventListener("click", () => moveJob(index, -1));
+    upBtn.disabled = globalIndex === 0;
+    upBtn.addEventListener("click", () => moveJob(globalIndex, -1));
 
     const downBtn = document.createElement("button");
     downBtn.textContent = "↓";
     downBtn.title = "Move down";
-    downBtn.disabled = index === jobs.length - 1;
-    downBtn.addEventListener("click", () => moveJob(index, 1));
+    downBtn.disabled = globalIndex === jobs.length - 1;
+    downBtn.addEventListener("click", () => moveJob(globalIndex, 1));
 
     actions.appendChild(upBtn);
     actions.appendChild(downBtn);
@@ -140,15 +196,14 @@ function createJobElement(job, index) {
     const editBtn = document.createElement("button");
     editBtn.textContent = "Edit";
     editBtn.addEventListener("click", () => {
-      const newName = prompt("Edit job description:", job.name);
-      if (!newName) return;
+      const newName = prompt("Edit job description:", job.name || "");
       const newBed = prompt("Edit bed number:", job.bedNumber);
       if (!newBed) return;
       const newWard = prompt("Edit ward:", job.ward);
       if (!newWard) return;
       const newLocation = prompt("Edit location:", job.location);
       if (!newLocation) return;
-      jobs[index] = { ...job, name: newName, bedNumber: newBed, ward: newWard, location: newLocation };
+      jobs[globalIndex] = { ...job, name: newName, bedNumber: newBed, ward: newWard, location: newLocation };
       saveJobs();
       renderJobs();
       updateLastUpdatedTime();
@@ -159,7 +214,7 @@ function createJobElement(job, index) {
     deleteBtn.textContent = "Delete";
     deleteBtn.addEventListener("click", () => {
       if (confirm("Delete this job?")) {
-        jobs.splice(index, 1);
+        jobs.splice(globalIndex, 1);
         saveJobs();
         renderJobs();
         updateLastUpdatedTime();
@@ -172,13 +227,14 @@ function createJobElement(job, index) {
 
   li.appendChild(checkbox);
   li.appendChild(rank);
-  li.appendChild(jobText);
+  li.appendChild(jobHeader); // Bed, Ward, Location at top
+  li.appendChild(jobText);   // Description and times below
   if (isAdmin) li.appendChild(actions);
 
-  // Drag & drop for admin only
+  // Drag & drop for admin only (remains unchanged)
   if (isAdmin) {
     li.addEventListener("dragstart", (e) => {
-      e.dataTransfer.setData("text/plain", index.toString());
+      e.dataTransfer.setData("text/plain", globalIndex.toString());
       li.style.opacity = "0.5";
     });
 
@@ -199,10 +255,10 @@ function createJobElement(job, index) {
       e.preventDefault();
       li.style.borderTop = "";
       const draggedIndex = parseInt(e.dataTransfer.getData("text/plain"));
-      if (draggedIndex === index) return;
+      if (draggedIndex === globalIndex) return;
       const draggedJob = jobs[draggedIndex];
       jobs.splice(draggedIndex, 1);
-      jobs.splice(index, 0, draggedJob);
+      jobs.splice(globalIndex, 0, draggedJob);
       saveJobs();
       renderJobs();
       updateLastUpdatedTime();
@@ -216,12 +272,38 @@ function renderJobs() {
   pendingJobList.innerHTML = "";
   completedJobList.innerHTML = "";
 
-  jobs.forEach((job, index) => {
-    const jobElement = createJobElement(job, index);
+  // Filter jobs into separate arrays and keep their global index
+  const pendingJobs = [];
+  const completedJobs = [];
+  jobs.forEach((job, idx) => {
+    if (job.archived) return;
     if (job.completed) {
-      completedJobList.appendChild(jobElement);
+      completedJobs.push({ job, idx });
     } else {
-      pendingJobList.appendChild(jobElement);
+      pendingJobs.push({ job, idx });
+    }
+  });
+
+  // Render pending jobs with proper ranking
+  pendingJobs.forEach((obj, localIdx) => {
+    const jobElement = createJobElement(obj.job, obj.idx, localIdx);
+    pendingJobList.appendChild(jobElement);
+  });
+  // Render completed jobs with proper ranking (if you want to number them too)
+  completedJobs.forEach((obj, localIdx) => {
+    const jobElement = createJobElement(obj.job, obj.idx, localIdx);
+    completedJobList.appendChild(jobElement);
+  });
+
+  renderArchivedJobs();
+}
+function renderArchivedJobs() {
+  if (!archivedJobList) return;
+  archivedJobList.innerHTML = "";
+  jobs.forEach((job, index) => {
+    if (job.archived) {
+      const jobElement = createJobElement(job, index);
+      archivedJobList.appendChild(jobElement);
     }
   });
 }
@@ -229,11 +311,10 @@ function renderJobs() {
 // --- Login event ---
 loginForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const username = loginUsername.value.trim();
   const password = loginPassword.value;
 
   const user = USERS.find(
-    u => u.username === username && u.password === password
+    u => u.password === password
   );
 
   if (!user) {
@@ -252,6 +333,7 @@ loginForm.addEventListener("submit", (e) => {
   form.style.display = isAdmin ? "" : "none";
   createJobHeader.style.display = isAdmin ? "" : "none";
 
+  archiveOldCompletedJobs();
   renderJobs();
   updateLastUpdatedTime();
 });
@@ -275,21 +357,24 @@ form.addEventListener("submit", (e) => {
   const bedNumber = bedInput.value.trim();
   const ward = wardInput.value.trim();
   const location = locationInput.value.trim();
-  if (!jobName || !bedNumber || !ward || !location) return;
+  // Only bed, ward, location are required
+  if (!bedNumber || !ward || !location) return;
 
   jobs.push({
-    name: jobName,
+    name: jobName, // May be empty string
     bedNumber,
     ward,
     location,
     timestamp: new Date().toISOString(),
     completed: false,
-    completedAt: null
+    completedAt: null,
+    archived: false
   });
 
   saveJobs();
   form.reset();
   jobInput.focus();
+  archiveOldCompletedJobs();
   renderJobs();
   updateLastUpdatedTime();
 });
@@ -297,6 +382,7 @@ form.addEventListener("submit", (e) => {
 // --- Refresh ---
 refreshButton.addEventListener("click", () => {
   jobs = JSON.parse(localStorage.getItem("jobs")) || [];
+  archiveOldCompletedJobs();
   renderJobs();
   updateLastUpdatedTime();
 });
@@ -305,6 +391,7 @@ refreshButton.addEventListener("click", () => {
 setInterval(() => {
   if (mainApp.style.display !== "none") {
     jobs = JSON.parse(localStorage.getItem("jobs")) || [];
+    archiveOldCompletedJobs();
     renderJobs();
     updateLastUpdatedTime();
   }
@@ -313,3 +400,6 @@ setInterval(() => {
 // --- Initial state ---
 mainApp.style.display = "none";
 loginScreen.style.display = "";
+
+// --- Archive on first load ---
+archiveOldCompletedJobs();
