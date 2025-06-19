@@ -1,4 +1,4 @@
-// --- Firebase Firestore Integration for Shared Jobs List with Roles + Admin Sort Order ---
+// --- Firebase Firestore Integration for Shared Jobs List with Roles + Admin Sort Order + Drag-and-Drop ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
 import {
   getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, getDoc
@@ -6,6 +6,9 @@ import {
 import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+
+// IMPORTANT: Add this to your HTML before this script!
+// <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
 // Firebase config
 const firebaseConfig = {
@@ -54,6 +57,7 @@ const createJobHeader = document.getElementById("createJobHeader");
 let jobs = [];
 let currentUser = null;
 let isAdmin = false;
+let sortable = null; // For SortableJS drag-and-drop
 
 // --- Utility Functions ---
 function formatDate(dateStr) {
@@ -113,7 +117,7 @@ async function archiveOldCompletedJobs() {
   if (batchUpdates.length) await Promise.all(batchUpdates);
 }
 
-// --- UI Rendering (unchanged, but gets jobs from Firestore) ---
+// --- UI Rendering (with arrows and drag) ---
 function createJobElement(job, rankNumber) {
   const li = document.createElement("li");
   li.setAttribute("data-id", job.id);
@@ -237,6 +241,7 @@ function createJobElement(job, rankNumber) {
   return li;
 }
 
+// --- NEW: Drag-and-drop + up/down for admins ---
 function renderJobs() {
   pendingJobList.innerHTML = "";
   completedJobList.innerHTML = "";
@@ -254,7 +259,35 @@ function renderJobs() {
   });
 
   renderArchivedJobs();
+
+  // Enable/disable drag-and-drop for admins
+  setupSortable(isAdmin);
 }
+
+function setupSortable(enable) {
+  if (sortable) {
+    sortable.destroy();
+    sortable = null;
+  }
+  if (enable && typeof Sortable !== "undefined") {
+    sortable = Sortable.create(pendingJobList, {
+      animation: 160,
+      handle: ".job-header,.rank", // Only drag by header or number
+      ghostClass: "sortable-ghost",
+      onEnd: async function (evt) {
+        if (evt.oldIndex === evt.newIndex) return;
+        // After drop, update sortOrder for all pending jobs
+        const lis = Array.from(pendingJobList.children);
+        const updates = lis.map((li, idx) => {
+          const id = li.getAttribute("data-id");
+          return updateJobInFirestore(id, { sortOrder: idx + 1 });
+        });
+        await Promise.all(updates);
+      }
+    });
+  }
+}
+
 function renderArchivedJobs() {
   if (!archivedJobList) return;
   archivedJobList.innerHTML = "";
@@ -315,6 +348,7 @@ onAuthStateChanged(auth, async (user) => {
     signupScreen.style.display = "none";
     loginForm.reset();
     loginError.textContent = "";
+    setupSortable(false);
   }
 });
 
