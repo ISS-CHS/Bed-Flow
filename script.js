@@ -1,7 +1,7 @@
-// --- Firebase Firestore Integration for Shared Jobs List ---
+// --- Firebase Firestore Integration for Shared Jobs List with Roles ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot
+  getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
 import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
@@ -55,7 +55,7 @@ let jobs = [];
 let currentUser = null;
 let isAdmin = false;
 
-// --- Utility Functions (unchanged) ---
+// --- Utility Functions ---
 function formatDate(dateStr) {
   const d = new Date(dateStr);
   const dd = String(d.getDate()).padStart(2, "0");
@@ -270,11 +270,17 @@ async function moveJob(jobId, direction) {
 }
 
 // --- Auth state listener ---
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user;
-    // For demo: admins = email ends with "@admin.com"
-    isAdmin = user.email && user.email.endsWith("@admin.com");
+    // ---- Firestore-based roles ----
+    let role = "user";
+    const userDocRef = doc(db, "users", user.uid);
+    const userDocSnap = await getDoc(userDocRef);
+    if (userDocSnap.exists()) {
+      role = userDocSnap.data().role || "user";
+    }
+    isAdmin = role === "admin";
     loginScreen.style.display = "none";
     signupScreen.style.display = "none";
     mainApp.style.display = "";
@@ -307,12 +313,18 @@ loginForm.addEventListener("submit", (e) => {
 
 // --- Signup event ---
 if (signupForm) {
-  signupForm.addEventListener("submit", (e) => {
+  signupForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = signupEmail.value.trim();
     const password = signupPassword.value;
     createUserWithEmailAndPassword(auth, email, password)
-      // No UI switch here! Let onAuthStateChanged handle app display.
+      .then(async (userCredential) => {
+        // Set user role in Firestore (default: user)
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+          email,
+          role: "user" // Default role
+        });
+      })
       .catch((error) => {
         signupError.textContent = "Signup failed: " + error.message;
       });
