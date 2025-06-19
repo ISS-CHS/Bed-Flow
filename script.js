@@ -1,4 +1,4 @@
-// --- Firebase Firestore Integration for Shared Jobs List with Roles ---
+// --- Firebase Firestore Integration for Shared Jobs List with Roles + Admin Sort Order ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
 import {
   getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, getDoc
@@ -264,9 +264,27 @@ function renderArchivedJobs() {
   });
 }
 
-// --- Move Job (admin only, basic order update) ---
+// --- Move Job (admin only, swaps sortOrder field) ---
 async function moveJob(jobId, direction) {
-  alert("To enable drag-and-drop/move order across all clients, implement a 'sortOrder' field in jobs and update all jobs' sortOrder in Firestore.");
+  if (!isAdmin) return;
+
+  // Only sort non-archived, non-completed jobs
+  const pendingJobs = jobs.filter(j => !j.archived && !j.completed);
+  const index = pendingJobs.findIndex(j => j.id === jobId);
+  if (index < 0) return;
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= pendingJobs.length) return;
+
+  const jobA = pendingJobs[index];
+  const jobB = pendingJobs[newIndex];
+
+  // Swap sortOrder fields
+  const sortA = typeof jobA.sortOrder === "number" ? jobA.sortOrder : 0;
+  const sortB = typeof jobB.sortOrder === "number" ? jobB.sortOrder : 0;
+  await Promise.all([
+    updateJobInFirestore(jobA.id, { sortOrder: sortB }),
+    updateJobInFirestore(jobB.id, { sortOrder: sortA })
+  ]);
 }
 
 // --- Auth state listener ---
@@ -354,7 +372,7 @@ logoutButton.addEventListener("click", () => {
   signOut(auth);
 });
 
-// --- Job add event (admin only) ---
+// --- Job add event (admin only, include sortOrder) ---
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!isAdmin) return;
@@ -363,6 +381,13 @@ form.addEventListener("submit", async (e) => {
   const ward = wardInput.value.trim();
   const location = locationInput.value.trim();
   if (!bedNumber || !ward || !location) return;
+
+  // Find the highest sortOrder among jobs (pending only)
+  const pendingJobs = jobs.filter(j => !j.archived && !j.completed);
+  const maxSortOrder = pendingJobs.length
+    ? Math.max(...pendingJobs.map(j => typeof j.sortOrder === "number" ? j.sortOrder : 0))
+    : 0;
+
   await addJobToFirestore({
     name: jobName,
     bedNumber,
@@ -371,7 +396,8 @@ form.addEventListener("submit", async (e) => {
     timestamp: new Date().toISOString(),
     completed: false,
     completedAt: null,
-    archived: false
+    archived: false,
+    sortOrder: maxSortOrder + 1
   });
   form.reset();
   jobInput.focus();
@@ -384,13 +410,20 @@ refreshButton.addEventListener("click", () => {
   updateLastUpdatedTime();
 });
 
-// --- Real-time listener: keep jobs synced ---
+// --- Real-time listener: keep jobs synced and sort by sortOrder ---
 onSnapshot(jobsCol, async (snapshot) => {
   jobs = [];
   snapshot.forEach((doc) => {
     jobs.push({ id: doc.id, ...doc.data() });
   });
-  jobs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  // Use sortOrder (fallback to timestamp)
+  jobs.sort((a, b) => {
+    const aOrder = typeof a.sortOrder === "number" ? a.sortOrder : 0;
+    const bOrder = typeof b.sortOrder === "number" ? b.sortOrder : 0;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    // fallback
+    return new Date(a.timestamp) - new Date(b.timestamp);
+  });
   await archiveOldCompletedJobs();
   renderJobs();
   updateLastUpdatedTime();
