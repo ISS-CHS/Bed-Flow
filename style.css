@@ -450,4 +450,5 @@ li.archived {
     margin-top: 0;
     height: 42px;
   }
+  .sortable-ghost { opacity: 0.5; }
 }
