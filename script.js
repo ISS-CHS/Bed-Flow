@@ -7,9 +7,6 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
 
-// IMPORTANT: Add this to your HTML before this script!
-// <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-
 // Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAD3LKX5Xsqpx88TSIoJUIOOXQ7VTTZbmU",
